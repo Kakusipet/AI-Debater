@@ -3,6 +3,8 @@ import streamlit as stChat
 import google.generativeai as genai
 from dotenv import main
 import os
+from chat import chatter
+
 
 main.load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -97,11 +99,12 @@ elif st.session_state.page == 3:
     if (randButt):
         topicIn = genTopic().text
         st.write(topicIn)
-    side = st.radio(
-    "What side will you argue",
-    ["Pro", "Con", "Either"])
+    if (st.session_state.debateForm != 'Thought Talk'):
+        side = st.radio(
+        "What side will you argue",
+        ["Pro", "Con", "Either"])
     subButt = st.button("Submit")
-    if (subButt):
+    if (subButt and topicIn):
         st.session_state.debateTopic = topicIn
         st.session_state.debateSide = side
         nextPg()
@@ -117,6 +120,9 @@ elif st.session_state.page == 4:
 
 elif st.session_state.page == 5:
     arg = st.text_area("Argue your side!")
+
+    chatter(model)
+
     finishDebate = st.button("End Debate")
     if (finishDebate):
         nextPg()
@@ -128,15 +134,11 @@ elif st.session_state.page == 6:
     st.write("heres how to improve:")
     st.write(st.session_state.skillLvl, st.session_state.debateForm, st.session_state.debateSide, st.session_state.debateTopic, st.session_state.rTime, st.session_state.dTime)
 
-# if (startButton):y5
-#     pg.empty()
-
-#     col1, col2, col3 = pg.columns(3)
-#     option = col2.selectbox(
-#     'What debate format would you like?',
-#     ('Standard', 'Crossfire', 'Thought Talk')
-#     )
-
-
-# img = Image.open("ai_debate_logo.png")
-# st.button(st.image(img))
+# # # # # THOUGHT TALK PROMPT # # # # #
+# Debate me on the following topic: ---. The debate format is a thought talk. In a thought talk, you can express any thoughts on the topic without picking any side. The other debater's skill level is: ---. Respond appropriately to challenge the debater at this skill level.
+    
+# # # # # CROSSFIRE PROMPT # # # # #
+# Debate me on the following topic: ---. The debate format is a crossfire. In a crossfire, you are allowed to interrupt the other speaker and do not have to be very respectful. The other debater's skill level is: ---. You are arguing for the --- side. Respond appropriately to challenge the debater at this skill level.
+    
+# # # # # REGULAR PROMPT # # # # #
+# Debate me on the following topic: ---. The debate format is regular. In a regular debate, you have --- time to debate and take turns arguing points. The other debater's skill level is: ---. You are arguing for the --- side. Respond appropriately to challenge the debater at this skill level.
