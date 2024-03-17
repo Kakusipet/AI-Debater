@@ -3,8 +3,12 @@ import streamlit as stChat
 import google.generativeai as genai
 from dotenv import main
 import os
-from chat import chatter
+from chat2 import chatter, log_to_string
 
+# from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+# from langchain.text_splitter import CharacterTextSplitter
+# from langchain.vectorstores import Chroma, FAISS
+# from langchain.chains.question_answering import load_qa_chain
 
 main.load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -23,7 +27,11 @@ def prevPg():
     st.rerun()
 
 def genTopic():
-    return model.generate_content("Generate only ONE debate topic. Do NOT generate more than one debate topic. Only return the topic with NO other numbers or text. Return in the format 'Resolved:' ")
+    return model.generate_content("Generate only ONE debate topic. Do NOT generate more than one debate topic. Only return the topic with NO other numbers or text. Do not give any topics against google's terms. Make sure the topic is interesting. Return in the format 'Resolved:' ")
+
+def genFeedback():
+    str = log_to_string()
+    st.write(model.generate_content(f"Act as the judge of a debate competition. The topic is {st.session_state.debateTopic} and you are advising the {st.session_state.debateSide} speaker, user. Provide feedback on user's performance against user's opponent: AI. The feedback should be based on delivery, content, style, and overall responses to opponent AI's arguments. At the end, declare the winner of the competition between user and AI keeping in mind that user is only {st.session_state.skillLvl}. Be very honest and critical." + str).text)
 
 if "page" not in st.session_state:
     st.session_state.page = 0
@@ -38,6 +46,8 @@ debateSide = ''
 debateTopic = ''
 rTime = 0
 dTime = 0
+
+chatLog = ""
 
 # # # # # # # # PROMPT VARIABLES # # # # # # # #
 
@@ -94,11 +104,19 @@ elif st.session_state.page == 2:
 
 elif st.session_state.page == 3:
     st.markdown("<h1 style='text-align: center; color: white;'>Topic</h1>", unsafe_allow_html=True)
-    topicIn = st.text_input("Enter a topic of your choice")
+
+    # Generate the topic only once, initially
+    if "topic1" not in st.session_state:
+        st.session_state.topic1 = ""
+
     randButt = st.button("Randomize")
     if (randButt):
-        topicIn = genTopic().text
-        st.write(topicIn)
+        st.session_state.topic1 = genTopic().text
+
+    topicIn = st.text_input("Enter a topic of your choice", value=st.session_state.topic1)
+
+
+    
     if (st.session_state.debateForm != 'Thought Talk'):
         side = st.radio(
         "What side will you argue",
@@ -110,8 +128,8 @@ elif st.session_state.page == 3:
         nextPg()
 
 elif st.session_state.page == 4:
-    reTime = st.slider('How much research time do you want? (mins)', 0, 60, 0)
-    deTime = st.slider('How long will the debate time for each side last? (secs)', 30, 360, 30)
+    reTime = st.slider('How much research time do you want? (mins)', 0, 60, 15)
+    deTime = values = st.slider('How long will the debate time for each side last? (mins)', 0.5, 6.0, 1.5)
     timesButt = st.button("Submit")
     if (timesButt):
         st.session_state.rTime = reTime
@@ -119,9 +137,12 @@ elif st.session_state.page == 4:
         nextPg()
 
 elif st.session_state.page == 5:
-    arg = st.text_area("Argue your side!")
 
-    chatter(model)
+    description = ""
+
+    prompty = f"Debate me on the following topic: {st.session_state.debateTopic}. The debate format is a {st.session_state.debateForm}{description} My debater's skill level is: {st.session_state.skillLvl}. I am arguing for the {st.session_state.debateSide} side. Respond appropriately to challenge me at this skill level. Argue only ONE point at a time and argue ONLY for the side opposing mine. Try not to answer in over 50 words, but address all portions of the opposing argument."
+
+    chatter(model, prompty)
 
     finishDebate = st.button("End Debate")
     if (finishDebate):
@@ -131,8 +152,10 @@ elif st.session_state.page == 5:
 elif st.session_state.page == 6:
     col1, col2, col3 = pg.columns(3)
     col2.image("judge.png", width=300)
-    st.write("heres how to improve:")
-    st.write(st.session_state.skillLvl, st.session_state.debateForm, st.session_state.debateSide, st.session_state.debateTopic, st.session_state.rTime, st.session_state.dTime)
+    st.write("Here's how to improve:")
+    genFeedback()
+    
+    #st.write(st.session_state.skillLvl, st.session_state.debateForm, st.session_state.debateSide, st.session_state.debateTopic, st.session_state.rTime, st.session_state.dTime)
 
 # # # # # THOUGHT TALK PROMPT # # # # #
 # Debate me on the following topic: ---. The debate format is a thought talk. In a thought talk, you can express any thoughts on the topic without picking any side. The other debater's skill level is: ---. Respond appropriately to challenge the debater at this skill level.
