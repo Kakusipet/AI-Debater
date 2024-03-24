@@ -4,6 +4,8 @@ import google.generativeai as genai
 from dotenv import main
 import os
 from chat2 import chatter, log_to_string
+import random as rand
+import time
 
 # from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 # from langchain.text_splitter import CharacterTextSplitter
@@ -27,11 +29,33 @@ def prevPg():
     st.rerun()
 
 def genTopic():
-    return model.generate_content("Generate only ONE debate topic. Do NOT generate more than one debate topic. Only return the topic with NO other numbers or text. Do not give any topics against google's terms. Make sure the topic is interesting. Return in the format 'Resolved:' ")
+    return model.generate_content("Generate only ONE debate topic. Do NOT generate more than one debate topic. Only return the topic with NO other numbers or text. Do not give any topics against google's terms. Make sure the topic is interesting and unique. The topic could relate to social and political issues, education, health, technology, environment or more. Return in the format 'Resolved:' ")
 
 def genFeedback():
     str = log_to_string()
-    st.write(model.generate_content(f"Act as the judge of a debate competition. The topic is {st.session_state.debateTopic} and you are advising the {st.session_state.debateSide} speaker, user. Provide feedback on user's performance against user's opponent: AI. The feedback should be based on delivery, content, style, and overall responses to opponent AI's arguments. At the end, declare the winner of the competition between user and AI keeping in mind that user is only {st.session_state.skillLvl}. Be very honest and critical." + str).text)
+    st.write(model.generate_content(f"Act as the judge of a debate competition. The topic is {st.session_state.debateTopic} and you are advising the {st.session_state.debateSide} speaker, user. Provide feedback on user's performance against user's opponent: AI. The feedback should be based on delivery, content, style, and overall responses to opponent AI's arguments. At the end, declare the winner of the competition between user and AI keeping in mind that user's skill level is only {st.session_state.skillStr}. Be very honest and critical." + str, safety_settings=[
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+]).text)
+
+def callback():
+    if st.session_state.my_recorder_output:
+        audio_bytes = st.session_state.my_recorder_output['bytes']
+        st.audio(audio_bytes)
 
 if "page" not in st.session_state:
     st.session_state.page = 0
@@ -74,12 +98,15 @@ elif st.session_state.page == 1:
     expButt = col3.button("Experienced")
     if (newButt):
         st.session_state.skillLvl = 1
+        st.session_state.skillStr = "beginner"
         nextPg()
     elif (midButt):
         st.session_state.skillLvl = 2
+        st.session_state.skillStr = "intermediate"
         nextPg()
     elif (expButt):
         st.session_state.skillLvl = 3
+        st.session_state.skillStr = "experienced"
         nextPg()
 
 elif st.session_state.page == 2:
@@ -87,19 +114,24 @@ elif st.session_state.page == 2:
     debateFormButt = col2.button("Submit")
     option = col2.selectbox(
     'What debate format would you like?',
-    ('', 'Standard', 'Crossfire', 'Thought Talk'))
+    ('', 'Standard'))
     if (option == 'Standard'):
         col2.write("This is normal debating")
-    elif (option == 'Crossfire'):
-        col2.write("This is fiery debating")
-    elif (option == 'Thought Talk'):
-        col2.write("This is relaxed debating")
+        desc = "In a regular debate, you have time to debate and take turns arguing points."
+    # elif (option == 'Crossfire'):
+    #     col2.write("This is fiery debating")
+    #     desc = ""
+    # elif (option == 'Thought Talk'):
+    #     col2.write("This is relaxed debating")
+    #     desc = "In a thought talk, you can express any thoughts on the topic without picking any side"
     # if (option == '')
     if (debateFormButt):
         if (option == ''):
             col2.write("Pick one of the options")
         else: 
             st.session_state.debateForm = option
+            st.session_state.debateFormDesc = option + desc
+
             nextPg()
 
 elif st.session_state.page == 3:
@@ -121,7 +153,17 @@ elif st.session_state.page == 3:
         side = st.radio(
         "What side will you argue",
         ["Pro", "Con", "Either"])
+        if (side == "Either"):
+            if (rand.randint(0, 1) == 0):
+                side = "Pro"
+            else:
+                side = "Con"
+                    
     subButt = st.button("Submit")
+
+    if (st.session_state.debateForm == 'Thought Talk'):
+        side = "Neutral"
+
     if (subButt and topicIn):
         st.session_state.debateTopic = topicIn
         st.session_state.debateSide = side
@@ -129,27 +171,55 @@ elif st.session_state.page == 3:
 
 elif st.session_state.page == 4:
     reTime = st.slider('How much research time do you want? (mins)', 0, 60, 15)
-    deTime = values = st.slider('How long will the debate time for each side last? (mins)', 0.5, 6.0, 1.5)
+    # deTime = values = st.slider('How long will the debate time for each side last? (mins)', 0.5, 6.0, 1.5)
     timesButt = st.button("Submit")
     if (timesButt):
         st.session_state.rTime = reTime
-        st.session_state.dTime = deTime
+        # st.session_state.dTime = deTime
         nextPg()
 
 elif st.session_state.page == 5:
+    # st.set_page_config()
+    skipRTButt = st.button("Skip research time")
+    st.write(st.session_state.debateTopic)
+
+    ph = st.empty()
+    N = st.session_state.rTime*60
+    for secs in range(N,0,-1):
+        if (skipRTButt):
+            nextPg()
+        mm, ss = secs//60, secs%60
+        ph.metric("Research time remaining", f"{mm:02d}:{ss:02d}")
+        time.sleep(1)
+    nextPg()
+
+elif st.session_state.page == 6:
+    # --- Sidebar ---
+    # with st.sidebar:
+    #     ph = st.sidebar.empty()
+    #     N = 5 * 60  # Set initial countdown duration (5 minutes)
+
+    #     # Run the countdown timer
+    #     for secs in range(N, 0, -1):
+    #         mm, ss = secs // 60, secs % 60
+    #         ph.metric("Countdown", f"{mm:02d}:{ss:02d}")
+    #         time.sleep(1)
+
+    st.write(st.session_state.debateTopic)
+    st.write("Your Side: ", st.session_state.debateSide)
 
     description = ""
 
-    prompty = f"Debate me on the following topic: {st.session_state.debateTopic}. The debate format is a {st.session_state.debateForm}{description} My debater's skill level is: {st.session_state.skillLvl}. I am arguing for the {st.session_state.debateSide} side. Respond appropriately to challenge me at this skill level. Argue only ONE point at a time and argue ONLY for the side opposing mine. Try not to answer in over 50 words, but address all portions of the opposing argument."
+    prompty = f"Debate me on the following topic: {st.session_state.debateTopic}. The debate format is a {st.session_state.debateForm}{description} My skill level is: {st.session_state.skillLvl}. I am arguing for the {st.session_state.debateSide} side. Respond appropriately to challenge me at this skill level. Argue only ONE point at a time and argue ONLY for the side opposing mine. Try not to answer in over 100 words, but address all portions of the opposing argument."
 
-    chatter(model, prompty)
+    chatter(model, prompty, st.session_state.debateSide)
 
     finishDebate = st.button("End Debate")
     if (finishDebate):
         nextPg()
 
 
-elif st.session_state.page == 6:
+elif st.session_state.page == 7:
     col1, col2, col3 = pg.columns(3)
     col2.image("judge.png", width=300)
     st.write("Here's how to improve:")

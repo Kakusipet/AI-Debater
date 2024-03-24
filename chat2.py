@@ -17,7 +17,7 @@ def log_to_string():
         log_string += f"{role}: {text}\n"
     return log_string
 
-def chatter(mod, prompty):
+def chatter(mod, prompty, side):
     try:
         model = mod
 
@@ -27,14 +27,35 @@ def chatter(mod, prompty):
             #st.session_state.chat.history.append({"role":"system", "parts" : {"text" : prompty}})
         # st.title('Gemini Pro Test')
         # print(st.session_state.chat.history)
-
-        for message in st.session_state.chat.history[2:]:
-            with st.chat_message(role_to_streamlit(message.role)):
-                st.markdown(message.parts[0].text)
+        if (side == "Pro"):
+            for message in st.session_state.chat.history[2:]:
+                with st.chat_message(role_to_streamlit(message.role)):
+                    st.markdown(message.parts[0].text)
+        if (side == "Con"):
+            for message in st.session_state.chat.history[1:]:
+                with st.chat_message(role_to_streamlit(message.role)):
+                    st.markdown(message.parts[0].text)
 
         if prompt := st.chat_input("Argue!"):
             st.chat_message("user").markdown(prompt)
-            response = st.session_state.chat.send_message(prompt)
+            response = st.session_state.chat.send_message(prompt, safety_settings=[
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+])
             with st.chat_message("assistant"):
                 st.markdown(response.text)
     except Exception as e:
